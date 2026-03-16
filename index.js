@@ -10,13 +10,22 @@ const OUTPUT_DIR = '/tmp/output';
 if (!fs.existsSync(OUTPUT_DIR)) fs.mkdirSync(OUTPUT_DIR, { recursive: true });
 
 app.post('/render', (req, res) => {
+  res.setTimeout(120000);
   try {
     const { title, audio_url, image_url, duration } = req.body;
+
+    if (!audio_url || !image_url) {
+      return res.json({
+        success: false,
+        error: "Missing audio_url or image_url",
+        video_path: null
+      });
+    }
+
     const outputFile = path.join(OUTPUT_DIR, `video_${Date.now()}.mp4`);
+    const cmd = `ffmpeg -y -loop 1 -i "${image_url}" -i "${audio_url}" -c:v libx264 -preset ultrafast -tune stillimage -c:a aac -b:a 128k -shortest -pix_fmt yuv420p -vf "scale=1920:1080" -t ${duration || 60} "${outputFile}" 2>/dev/null`;
 
-    const cmd = `ffmpeg -loop 1 -i "${image_url}" -i "${audio_url}" -c:v libx264 -c:a aac -b:a 192k -shortest -pix_fmt yuv420p -vf "scale=1920:1080" "${outputFile}"`;
-
-    execSync(cmd, { timeout: 300000 });
+    execSync(cmd, { timeout: 110000 });
 
     res.json({
       success: true,
@@ -30,6 +39,10 @@ app.post('/render', (req, res) => {
 
 app.get('/health', (req, res) => {
   res.json({ status: 'OK', ffmpeg: 'ready' });
+});
+
+app.get('/ping', (req, res) => {
+  res.json({ pong: true, time: Date.now() });
 });
 
 const PORT = process.env.PORT || 3000;
